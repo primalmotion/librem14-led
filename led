@@ -1,0 +1,128 @@
+#!/bin/env bash
+#
+# Copyright (C) 2021 primalmotion
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with 
+# this program. If not, see <https://www.gnu.org/licenses/>.
+
+set -e
+
+function usage() {
+	
+	cat << EOF
+Controls Purism Librem's 14 notification LED.
+
+Usage: $(basename $0) [-c _color_ ] [-r]
+
+Value of -c can be an hexadcimal color without the '#' prefix or one the 
+constants:
+ - 'r': red
+ - 'g': green
+ - 'b': blue
+ - 'w': white
+
+If you set -r, it will remember the current state of the led then 
+restore it before exiting. This can be used to make the led flash 
+to a different color then go back to its previous state.
+
+Not passing any argument will turn the led off (equivalent to -c 000000).
+
+This scripts uses sudo. To avoid having to enter your password, add the 
+following to /etc/sudoers:
+
+ALL ALL=(ALL) NOPASSWD: /usr/bin/tee /sys/class/leds/red\:status/brightness 
+ALL ALL=(ALL) NOPASSWD: /usr/bin/tee /sys/class/leds/green\:status/brightness 
+ALL ALL=(ALL) NOPASSWD: /usr/bin/tee /sys/class/leds/blue\:status/brightness 
+EOF
+}
+
+# Converts hexadcimal color to RGB.
+function hex() {
+	printf "%d %d %d\n" 0x${1:0:2} 0x${1:2:2} 0x${1:4:2}
+}
+
+# Sets the brightness of the tree color components.
+# Arguments: red green blue
+function set_color() {
+
+	echo "$1" | sudo /usr/bin/tee "/sys/class/leds/red:status/brightness" > /dev/null
+	echo "$2" | sudo /usr/bin/tee "/sys/class/leds/green:status/brightness" > /dev/null
+	echo "$3" | sudo /usr/bin/tee "/sys/class/leds/blue:status/brightness" > /dev/null
+}
+
+# Stores the current color of the LED in a temp file.
+function store_color() {
+	cat /sys/class/leds/red:status/brightness \
+		/sys/class/leds/green:status/brightness \
+		/sys/class/leds/blue:status/brightness > /tmp/.ledstate
+}
+
+# Reads the temp file and restores the stored color.
+function restore_color() {
+	readarray -t colors < /tmp/.ledstate
+	set_color ${colors[@]}
+	rm -f /tmp/.ledstate
+}
+
+# Controls the LED as a single entity.
+# Arguments: color [restore]
+function ledctl() {
+		
+	local color="${1:-"000000"}"
+	local restore="$2"
+	local colors=()
+
+	case "$color" in
+		r|red)		color="ff0000" ;;
+		v|g|green)	color="00ff00" ;;
+		b|blue)		color="0000ff" ;;
+		w|white)	color="ffffff" ;;
+	esac
+
+	read -ra colors <<< "$(hex "$color")"
+		
+	[[ $restore != "" ]] && store_color
+	set_color ${colors[@]}
+	[[ $restore != "" ]] && restore_color
+
+	return 0
+}
+
+_color=""
+_restore=""
+
+while getopts "c:rh" option; do
+	case ${option} in
+		c) 
+			_color="$OPTARG"
+			;;
+		r)
+			_restore="1"
+			[[ -e "/tmp/.ledstate" ]] && \
+				echo "led busy (found /tmp/.ledstate). Please retry" && \
+				exit 1
+			;;
+		h|help)
+			usage
+			exit 0
+			;;
+		\?)
+			echo "error: wrong usage."
+			usage
+			exit 1
+			;;
+	esac
+done
+
+ledctl "$_color" "$_restore"
+exit 0
