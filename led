@@ -37,7 +37,7 @@ to a different color then go back to its previous state.
 
 Not passing any argument will turn the led off (equivalent to -c 000000).
 
-This scripts uses sudo. To avoid having to enter your password, add the 
+This script uses sudo. To avoid having to enter your password, add the 
 following to /etc/sudoers:
 
 ALL ALL=(ALL) NOPASSWD: /usr/bin/tee /sys/class/leds/red\:status/brightness 
