@@ -21,6 +21,4 @@ Not passing any argument will turn the led off (equivalent to `-c 000000`).
 This script uses `sudo`. To avoid having to enter your password, add the 
 following to `/etc/sudoers`:
 
-    ALL ALL=(ALL) NOPASSWD: /usr/bin/tee /sys/class/leds/red\:status/brightness 
-    ALL ALL=(ALL) NOPASSWD: /usr/bin/tee /sys/class/leds/green\:status/brightness 
-    ALL ALL=(ALL) NOPASSWD: /usr/bin/tee /sys/class/leds/blue\:status/brightness
+	ALL ALL=(ALL) NOPASSWD: /usr/bin/tee /sys/class/leds/*\:status/brightness
